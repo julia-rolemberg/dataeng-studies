@@ -48,25 +48,77 @@ def casos_dengue(elemento):
         else:
             yield (f"{uf}-{registro['ano_mes']}", 0.0) # retorna todos os elementos
 
+def chave_uf_ano_mes_de_lista(elemento):
+    """
+    Recebe uma lista de elementos
+    Retorna uma tupla contendo uma chave e o valor de chuva em mm 
+    ('UF-ANO-MES', 1.3)
+    
+    """
+    data, mm, uf = elemento
+    ano_mes = '-'.join(data.split('-')[:2])
+    chave = f'{uf}-{ano_mes}'
+    if float(mm)< 0:
+        mm = 0.0
+    else:   
+        mm = float(mm)
+    return chave, mm
 
+def arredonda(elemento):
+    """
+    Recebe uma tupla 
+    Retorna uma tupla com o valor arredondado
+    """
+    chave, mm = elemento
+    return (chave, round(mm, 1))
 
-# dengue = (
-#     pipeline
-#     | "Leitura do dataset de dengue" >> ReadFromText('data/casos_dengue.txt', skip_header_lines=1)
-#     | "De  texto para lista" >> beam.Map(texto_para_lista)
-#     | "De lista para dicionário" >> beam.Map(lista_para_dict, colunas_dengue)
-#     | "Criar campo ano_mes" >> beam.Map(trata_data)
-#     | "Criar chave pelo estado" >> beam.Map(chave_uf)
-#     | "Agrupar pelo estado" >> beam.GroupByKey()
-#     | "Descompactar casos  de dengue" >> beam.FlatMap(casos_dengue)
-#     | "Somar dos  casos pela chave" >> beam.CombinePerKey(sum)
-#     # | "Mostrar Resultados" >> beam.Map(print)   
-# )
+def filtra_campos_vazios(elemento):
+    """
+    Remove elementos que tenham chaves vazias
+    Recebe uma tupla  com campos vazios e retorna uma tupla sem campos vazios
+
+    """
+    chave, dados = elemento
+    if all([
+        dados['chuvas'],
+        dados['dengue']
+    ]):
+        return True
+    return  False
+print("Casos de dengue")
+
+dengue = (
+    pipeline
+    | "Leitura do dataset de dengue" >> ReadFromText('data/sample_casos_dengue.txt', skip_header_lines=1)
+    | "De  texto para lista" >> beam.Map(texto_para_lista)
+    | "De lista para dicionário" >> beam.Map(lista_para_dict, colunas_dengue)
+    | "Criar campo ano_mes" >> beam.Map(trata_data)
+    | "Criar chave pelo estado" >> beam.Map(chave_uf)
+    | "Agrupar pelo estado" >> beam.GroupByKey()
+    | "Descompactar casos  de dengue" >> beam.FlatMap(casos_dengue)
+    | "Somar dos  casos pela chave" >> beam.CombinePerKey(sum)
+    # | "Mostrar Resultados" >> beam.Map(print)   
+)
+print("Chuva")
 chuvas = (
     pipeline
-    | "Leitura do dataset de chuvas" >> ReadFromText('data/chuvas.csv', skip_header_lines=1)
+    | "Leitura do dataset de chuvas" >> ReadFromText('data/sample_chuvas.csv', skip_header_lines=1)
     | "De  texto para lista(chuvas)" >> beam.Map(texto_para_lista, delimitador=',')
-    | "Mostrar Resultados de chuvas" >> beam.Map(print)  
+    | "Criando a chave UF-ANO-MES" >> beam.Map(chave_uf_ano_mes_de_lista)
+    | "Soma do total de chuvas pela chave" >> beam.CombinePerKey(sum)
+    | "Arredondar resultados de chuvas" >> beam.Map(arredonda)
+    # |  "Mostrar Resultados de chuvas" >> beam.Map(print)  
+)
+
+resultado = (
+    # (chuvas,dengue)
+    # | "Empilha as pcols" >> beam.Flatten()
+    # | "Agrupa as pcols" >> beam.GroupByKey()
+    ({"chuvas": chuvas, "dengue":  dengue})
+    | "Mesclar pcols" >> beam.CoGroupByKey()
+    | "Filtrar dados vazios" >> beam.Filter(filtra_campos_vazios)
+    |  "Mostrar Resultados da uniao" >> beam.Map(print)  
+
 )
 
 pipeline.run()
