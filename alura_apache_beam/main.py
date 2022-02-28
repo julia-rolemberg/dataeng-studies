@@ -1,7 +1,9 @@
 import apache_beam as beam 
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.io import ReadFromText
+from apache_beam.io.textio import WriteToText
 import re
+
 pipeline_options =  PipelineOptions(argv=None)
 pipeline  = beam.Pipeline(options=pipeline_options)
 colunas_dengue = ["id","data_iniSE","casos","ibge_code","cidade","uf","cep","latitude","longitude"]
@@ -85,11 +87,34 @@ def filtra_campos_vazios(elemento):
     ]):
         return True
     return  False
+
+
+def descompacta_elementos(elemento):
+    """
+    Receber uma tupla ('CE-2015-11', {'chuvas': [0.4], 'dengue': [21.0]})
+    Retornar uma tupla ('CE', '2015', '11', '0.4', '21.0')
+    """
+    chave, dados = elemento
+    chuva = dados['chuvas'][0]
+    dengue = dados['dengue'][0]
+    uf, ano, mes = chave.split('-')
+    return uf, ano, mes, str(chuva), str(dengue)
+
+
+def preparar_csv(elem, delimitador=';'):
+    """
+    Receber uma tupla ('CE', 2015, 11, 0.4, 21.0)
+    Retornar uma string delimitada "CE;2015;11;0.4;21.0"
+    """
+    return f"{delimitador}".join(elem)
+
+
+
 print("Casos de dengue")
 
 dengue = (
     pipeline
-    | "Leitura do dataset de dengue" >> ReadFromText('data/sample_casos_dengue.txt', skip_header_lines=1)
+    | "Leitura do dataset de dengue" >> ReadFromText('data/casos_dengue.txt', skip_header_lines=1)
     | "De  texto para lista" >> beam.Map(texto_para_lista)
     | "De lista para dicionário" >> beam.Map(lista_para_dict, colunas_dengue)
     | "Criar campo ano_mes" >> beam.Map(trata_data)
@@ -102,7 +127,7 @@ dengue = (
 print("Chuva")
 chuvas = (
     pipeline
-    | "Leitura do dataset de chuvas" >> ReadFromText('data/sample_chuvas.csv', skip_header_lines=1)
+    | "Leitura do dataset de chuvas" >> ReadFromText('data/chuvas.csv', skip_header_lines=1)
     | "De  texto para lista(chuvas)" >> beam.Map(texto_para_lista, delimitador=',')
     | "Criando a chave UF-ANO-MES" >> beam.Map(chave_uf_ano_mes_de_lista)
     | "Soma do total de chuvas pela chave" >> beam.CombinePerKey(sum)
@@ -117,8 +142,12 @@ resultado = (
     ({"chuvas": chuvas, "dengue":  dengue})
     | "Mesclar pcols" >> beam.CoGroupByKey()
     | "Filtrar dados vazios" >> beam.Filter(filtra_campos_vazios)
-    |  "Mostrar Resultados da uniao" >> beam.Map(print)  
+    | "Decompactar  elementos" >> beam.Map(descompacta_elementos)
+    | 'Preparar csv' >> beam.Map(preparar_csv)
+    # | "Mostrar Resultados da uniao" >> beam.Map(print)  
 
 )
+
+resultado | 'Criar arquivo CSV' >> WriteToText('resultado')
 
 pipeline.run()
