@@ -1,3 +1,5 @@
 *.env
 *.csv
-*.rar  
+*.rar 
+*.json
+.venv
