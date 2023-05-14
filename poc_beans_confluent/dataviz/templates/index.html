@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dygraph Example</title>
+  <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.2.1/dygraph.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.2.1/dygraph.min.css" />
+  <script src="https://code.jquery.com/jquery-1.9.1.min.js"></script>
+  <script src="https://cdn.socket.io/3.1.3/socket.io.min.js"></script>
+
+</head>
+<body>
+  <div id="graph"></div>
+  <script type="text/javascript">
+
+    function teste(){
+      return Math.random();
+    }
+    $(document).ready(function() {
+        var data = [];
+        var t = new Date();
+        for (var i = 10; i >= 0; i--) {
+          var x = new Date(t.getTime() - i * 1000);
+          data.push([x, Math.random()]);
+        }
+
+        var g = new Dygraph(document.getElementById("graph"), data,
+                            {
+                              drawPoints: true,
+                              showRoller: true,
+                              valueRange: [0.0, 1.2],
+                              labels: ['Time', 'Random']
+                            });
+        // It sucks that these things aren't objects, and we need to store state in window.
+
+        window.intervalId = setInterval(function() {
+          var x = new Date();  // current time
+          var y = teste();
+          data.push([x, y]);
+          g.updateOptions( { 'file': data } );
+        }, 1000);
+      }
+    );
+
+  </script>
+</body>
+</html>
