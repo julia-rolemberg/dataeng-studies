@@ -37,7 +37,7 @@ if __name__ == '__main__':
     # Consume messages from the Kafka topic
     try:
         while True:
-            msg = consumer.poll(1.0)
+            msg = consumer.poll(5.0)
             if msg is None:
                 continue
             if msg.error():

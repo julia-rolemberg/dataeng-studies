@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>My Chart</title>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.2.1/dygraph.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/dygraph/2.2.1/dygraph.min.css" />
+    <script src="https://code.jquery.com/jquery-1.9.1.min.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/d3/3.4.4/d3.min.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/c3/0.4.10/c3.min.js"></script>
+    <script src="https://cdn.socket.io/3.1.3/socket.io.min.js"></script>
+    <!-- <script src="https://cdn.socket.io/3.1.3/socket.io.min.js" integrity="sha384-RvV7I3a/ApJSyLHK5gdXbTOCtLn5xEYgGZiKjZtZXHGWtHSuxbwgpppg5j5WtbbE" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dygraph/2.2.3/dygraph.min.js"></script>
+    <link rel="stylesheet" src="https://cdnjs.cloudflare.com/ajax/libs/dygraph/2.2.3/dygraph.min.css"> -->
+
+  </head>
+  <body>
+    <div id="graph"></div>
+    <script type="text/javascript">
+        var chart = c3.generate({
+            bindto: '#chart',
+            data: {
+                columns: [
+                    ['data1', 30, 200, 100, 400, 150, 250],
+                ],
+                type: 'spline'
+            },
+            axis: {
+                x: {
+                    type: 'category',
+                    categories: ['0', '1', '2', '3', '4', '5']
+                }
+            }
+        });
+
+        var socket = io.connect('http://' + document.domain + ':' + location.port);
+        socket.on('connect', function() {
+            console.log('Connected to server');
+        });
+        socket.on('disconnect', function() {
+            console.log('Disconnected from server');
+        });
+        socket.on('update', function(data) {
+            console.log('Received data:', data);
+            var parsedData = JSON.parse(data);
+            var graphData = [];
+            for (var i = 0; i < parsedData.length; i++) {
+                graphData.push([new Date(parsedData[i][0]), parsedData[i][1]]);
+            }
+            var graph = new Dygraph(document.getElementById("graph"), graphData,
+                {
+                    xlabel: "Time",
+                    ylabel: "Value",
+                    labels: ["Time", "Value"],
+                    legend: "always"
+                });
+        });
+
+    </script>
+
+  </body>
+</html>
