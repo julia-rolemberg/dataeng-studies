@@ -1,0 +1,9 @@
+{
+  "type": "record",
+  "name": "Message",
+  "fields": [
+    {"name": "size", "type": "float"},
+    {"name": "avg_speed", "type": "float"},
+    {"name": "age", "type": "int"}
+  ]
+}

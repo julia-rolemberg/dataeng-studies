@@ -5,6 +5,9 @@ import random
 from argparse import ArgumentParser, FileType
 from configparser import ConfigParser
 from confluent_kafka import Producer
+from avro.schema import parse
+import io
+from avro.io import DatumWriter, BinaryEncoder
 
 def generate_individual():
     individual = {
@@ -25,6 +28,9 @@ if __name__ == '__main__':
     config_parser.read_file(args.config_file)
     config = dict(config_parser['default'])
 
+    # Load the Avro schema from a file or define it in your code
+    avro_schema = parse(open('avro_schema.avsc', 'r').read())
+
     # Create a Kafka producer instance
     producer = Producer(config)
 
@@ -33,15 +39,27 @@ if __name__ == '__main__':
         if err is not None:
             print(f'Message delivery failed: {err}')
         else:
-            print(f"Produced event to topic {msg.topic()}: message = {msg.value().decode('utf-8')}")
+            message_value = msg.value()
+            plain_text = message_value.decode('utf-8')
+            print(f"Produced event to topic {msg.topic()}: message = {plain_text}")
+
+
+
 
     # Define the Kafka topic to publish messages to
-    topic = 'topic_teste'
+    topic = 'topic_individuals'
 
     # Continuously generate and publish messages to the Kafka topic
     while True:
         individual = generate_individual()
-        message = json.dumps(individual).encode('utf-8')
-        producer.produce(topic, value=message, callback=delivery_callback)
+
+        # Serialize the message payload using Avro
+        bytes_writer = io.BytesIO()
+        encoder = BinaryEncoder(bytes_writer)
+        writer = DatumWriter(avro_schema)
+        writer.write(individual, encoder)
+        encoded_message = bytes_writer.getvalue()
+
+        producer.produce(topic, value=encoded_message, callback=delivery_callback)
         producer.poll(0)
         time.sleep(1)
