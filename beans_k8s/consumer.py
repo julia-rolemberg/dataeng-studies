@@ -1,11 +1,6 @@
-#!/usr/bin/env python
-
-import sys
 from argparse import ArgumentParser, FileType
 from configparser import ConfigParser
 import json
-import random
-import time
 from confluent_kafka import Consumer, OFFSET_BEGINNING, KafkaError
 
 if __name__ == '__main__':
